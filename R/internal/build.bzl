@@ -299,10 +299,10 @@ def _build_impl(ctx):
                        _makevars_files(info.makevars_site, ctx.file.makevars) +
                        stamp_files + instrument_files + [info.state])
 
-    roclets_lib_dirs = []
-    if ctx.attr.roclets:
-        roclets_lib_dirs = _library_deps(ctx.attr.roclets_deps).lib_dirs
-        all_input_files.extend(roclets_lib_dirs)
+    docs_lib_dirs = []
+    if ctx.attr.roclets or ctx.attr.build_pkgdown:
+        docs_lib_dirs = _library_deps(ctx.attr.docs_deps).lib_dirs
+        all_input_files.extend(docs_lib_dirs)
 
     if ctx.file.config_override:
         all_input_files += [ctx.file.config_override]
@@ -333,11 +333,12 @@ def _build_impl(ctx):
         "R_MAKEVARS_USER": ctx.file.makevars.path if ctx.file.makevars else "",
         "CONFIG_OVERRIDE": ctx.file.config_override.path if ctx.file.config_override else "",
         "ROCLETS": ", ".join(["'%s'" % r for r in ctx.attr.roclets]),
+        "BUILD_PKGDOWN": str(ctx.attr.build_pkgdown),
         "C_LIBS_FLAGS": " ".join(cc_deps.c_libs_flags),
         "C_CPP_FLAGS": " ".join(cc_deps.c_cpp_flags),
         "C_SO_FILES": _sh_quote_args([f.path for f in cc_deps.c_so_files]),
         "R_LIBS_DEPS": ":".join(["_EXEC_ROOT_" + d.path for d in library_deps.lib_dirs]),
-        "R_LIBS_ROCLETS": ":".join(["_EXEC_ROOT_" + d.path for d in roclets_lib_dirs]),
+        "R_LIBS_DOCS": ":".join(["_EXEC_ROOT_" + d.path for d in docs_lib_dirs]),
         "BUILD_ARGS": _sh_quote_args(ctx.attr.build_args),
         "INSTALL_ARGS": _sh_quote_args(install_args),
         "EXPORT_ENV_VARS_CMD": "; ".join(_env_vars(info.env_vars) + _env_vars(ctx.attr.env_vars)),
@@ -512,6 +513,10 @@ _PKG_ATTRS.update({
         allow_single_file = True,
         doc = "Replace the package configure script with this file",
     ),
+    "docs_deps": attr.label_list(
+        doc = ( "Dependency labels for building documentation, such as roxygen2, " +
+               "devtools, and pkgdown dependencies"),
+    ),
     "roclets": attr.string_list(
         doc = ("roclets to run before installing the package. If this is non-empty, " +
                "then you must specify roclets_deps as the R package you want to " +
@@ -519,8 +524,9 @@ _PKG_ATTRS.update({
                "is available and use `devtools::document`, failing which, it will " +
                "check if roxygen2 is available and use `roxygen2::roxygenize`"),
     ),
-    "roclets_deps": attr.label_list(
-        doc = "roxygen2 or devtools dependency for running roclets",
+    "build_pkgdown": attr.bool(
+        default = False,
+        doc = "Automatically build pkgdown site (depends on docs_deps path)",
     ),
     "makevars": attr.label(
         allow_single_file = True,

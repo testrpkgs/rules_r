@@ -171,7 +171,7 @@ fi
 # Use R_LIBS in place of R_LIBS_USER because on some sytems (e.g., Ubuntu),
 # R_LIBS_USER is parameter substituted with a default in .Renviron, which
 # imposes length limits.
-export R_LIBS="${R_LIBS_ROCLETS//_EXEC_ROOT_/${EXEC_ROOT}/}"
+export R_LIBS="${R_LIBS_DOCS//_EXEC_ROOT_/${EXEC_ROOT}/}"
 export R_LIBS_USER=dummy
 
 if [[ "${ROCLETS}" ]]; then
@@ -183,6 +183,18 @@ if ("devtools" %in% installed.packages(bazel_libs)[, "Package"]) {
 } else {
   roxygen2::roxygenize(package.dir='${PKG_SRC_DIR}', roclets=c(${ROCLETS}))
 }
+EOF
+fi
+
+# Build pkgdown site
+if [[ "${BUILD_PKGDOWN}" == "True" ]]; then
+  TMP_HOME="/tmp/bazel/R/home"
+  mkdir -p "${TMP_HOME}"
+  export HOME="${TMP_HOME}"
+  silent "${RSCRIPT}" - <<EOF
+bazel_libs <- .libPaths()
+bazel_libs <- bazel_libs[! bazel_libs %in% c(.Library, .Library.site)]
+pkgdown::build_site('${PKG_SRC_DIR}')
 EOF
 fi
 
